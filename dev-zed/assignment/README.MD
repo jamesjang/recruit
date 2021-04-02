@@ -29,15 +29,18 @@ Float 배열을 Vector3 배열로 변환하였고, 루프 안에서 정점들을
                         triangles.Add(l + 2);
                     }
 ```
-그리고나서, GenerateMesh(GameObject, Vector3[], int[], Material)를 호출하였습니다. 그러나, 두 번째 질문에서 어떻게 UV mapping을 하나의 mesh에 적용할지가 고민되었습니다.
+그리고나서, GenerateMesh(GameObject, Vector3[], int[], Material)를 호출하였습니다. 
+그러나, 두 번째 질문에서 어떻게 UV mapping을 하나의 mesh에 적용할지가 고민되었습니다.
 
 # Q2)
 
 각각의 건물들에 주어진 texture를 이용하여 새 shader material을 만들었습니다.
- 
-Shader shader = Shader.Find("Universal Render Pipeline/Lit");
- 
-Material material = new Material(shader) {mainTexture = textureMap};
+
+```
+    Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+
+    Material material = new Material(shader) {mainTexture = textureMap};
+ ```
 
 recalculatingnormals와 mesh vertices 설정 후, quad가 바라보는 각도를 찾아내야 했습니다.
 앞, 위/아래, 나머지의 세 면이 있었습니다.
@@ -53,7 +56,84 @@ Quad의 y와 y의 최대값을 비교한 뒤, 올바르게 UP map 좌표에 적�
 
 Texture 맵에서의 normalize된 포지션을 얻기 위해, UV는 반복문 안에서 정점들을 조회하고 전체 정점 배열 중 최소값, 최대값과 비교하며 맵핑되었습니다. 적절한 texture를 얻기 위해 0.0-0.75의 offset을 더하였습니다.
 
+```
+  ProcessUV(Mesh);
+```
+
+
 # 결과 
 ![results](https://imgur.com/sxkkBIO.png)
+
+
+# Q1
+I used JsonUtility.FromJson to get the data from the file and parsed the data using structs made in DataClass.cs
+
+I converted the Base64string to vector using the functions mentioned in the question (Convert.FromBase64String, Buffer.BlockCopy)
+```
+                   // Convert Base64 coordinates to float.
+
+                    byte[] bytes = System.Convert.FromBase64String(vertex);
+
+                    float[] floats = new float[bytes.Length / 4];
+
+
+                    //blockcopy byte array to float array
+
+                    System.Buffer.BlockCopy(bytes, 0, floats, 0, bytes.Length);
+```
+
+I converted the float array to a Vector3 array and got the triangles by looping through the vertices length and adding an offset of 1 and 2 to get triangles for the mesh. 
+```
+
+                    // Get triangles for mesh.
+
+                    for (var l = 0; l < vertices.Count; l += 3)
+
+                    {
+
+                        triangles.Add(l);
+
+                        triangles.Add(l + 1);
+
+                        triangles.Add(l + 2);
+
+                    }
+
+```
+I then called GenerateMesh(GameObject, Vector3[]., int[], Material)
+
+I was worried about how I was going to apply UV mapping to one mesh in question 2. I made it into one mesh instead of breaking it up for optimization.
+
+# Q2.
+
+For each building I created a new shader material with the supplied texture 
+
+```
+Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+
+
+Material material = new Material(shader) {mainTexture = textureMap};
+```
+
+After recalculatingnormals() and setting the mesh vertices, I had to find out the angle the quad is facing for the UV Mapping. There are 3 sides which are Front, Top/Bottom, Else. 
+```
+        Vector3 normal = normals[i];
+
+        float angle = Vector3.Angle(normal, Vector3.forward) + 180.0f;
+```
+
+I found the direction by finding the angle in between the normal and forward vector and added 180 to make a complete angle. For the top and bottom, i just compared the normal to Vector3.up || Vector3.down
+
+I didn’t want the texture to stretch across the mesh because it would not look good. I also noticed that there are connecting buildings with different height values so mapping them to one plane wouldn’t look right as they might have texture that is cut off.
+
+After comparing the quad’s y to max y, I could normalize that value to apply the proper UV map coordinates
+
+
+The uv was mapped by  looping through the vertices and comparing it to the min and max values of the entire vertices array to get a normalized position for the texture map. Added an offset of 0.0 - 0.75 to get the according texture.
+
+```
+  ProcessUV(Mesh);
+```
+
 
 

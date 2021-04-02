@@ -1,127 +1,59 @@
-# ZIGBANG ZED Assignment
+## ZIGBANG ZED Assignment 해결 방법 
 
-안녕하세요. 직방 ZED 팀 지원자 여러분. 지원해주셔서 감사합니다.
+# Q1)
 
-과제 설명 전 간단한 안내 말씀 드리겠습니다.
-
-직방 ZED 팀은 유니티 엔진을 이용하여 직방에 있는 부동산 빅데이터들을
-
-3D 정보로 시각화해주는 일을 하고 있습니다.
-
-이와 관련하여 과제도 간단한 데이터를 이용해 3D 시각화로 진행하고 있습니다.
-
-Github 의 fork 기능을 이용하여 개인 저장소로 복사해주신 다음 
-
-코드를 작성 및 README.MD 파일 수정 후 개인 저장소의 URL을 채용 담당자에게 공유해주시면 됩니다.
-
-최하단의 [문제 해결 방법] 섹션은 면접에 도움이 될 수 있도록
-
-과제를 하면서 고민했던 부분, 해결방안 등에 대해 자유롭게 작성해주시면 됩니다.
-
-## 과제 설명
-
-- 과제는 유니티 2019.4.21f1 으로 작성합니다.
-
-- Scenes/ZedScene.unity 씬에서 확인 가능하도록 작성부탁드립니다.
-
-### 문제1) 단지에 있는 동의 폴리곤 데이터를 이용하여 런타임에 메쉬를 구성하여 렌더링해주세요.(40점)
-
-샘플 데이터는 아래의 경로에 위치해 있습니다.
-
-Assets/Samples/json/dong.json
-
-다음과 같이 구성되어 있습니다.
+파일에서 데이터를 불러오기 위해 JsonUtility.FromJson를 사용하였고, DataClass.cs에 만든 struct를 사용하여 데이터를 파싱하였습니다. 질문에서 언급된 함수 (Convert.FromBase64String, Buffer.BlockCopy)를 사용하여 Base64string을 vector로 변환하였습니다.
 
 ```
-API Response 구성
-{
-    success: boolean, // API 성공 여부
-    code: number, // API 결과 코드
-    data: [] // 동 데이터 배열
-}
-
-동 데이터 구성
-{
-    roomtypes: [], // 타입 데이터의 배열
-    meta: {
-        bd_id: number, // 동 id
-        동: string, // 동 이름
-        지면높이: number, // 지면으로 부터의 높이
-    } // 메타 정보
-}
-
-타입 데이터 구성
-{
-    coordinatesBase64s: string[], // 폴리곤 데이터의 배열
-    meta: {
-        룸타입id: number // 타입 id
-    }
-}
-
-폴리곤 데이터의 구성 (*중요*)
-- float[] 을 byte[] 로 변환후 Base64 로 인코딩된 데이터
-- float[] 는 3개씩 나누어 Vector3 의 x,z,y 에 매핑됩니다.
-  ex) [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
-  -> [Vector3(1.0, 3.0, 2.0), Vector3(4.0, 6.0, 5.0)]
-- C# 의 Buffer.BlockCopy, Convert.FromBase64String 등의 함수를 이용하시면 됩니다.
+                   // Convert Base64 coordinates to float. 
+                    byte[] bytes = System.Convert.FromBase64String(vertex);
+                    float[] floats = new float[bytes.Length / 4];
+ 
+                    //blockcopy byte array to float array 
+                    System.Buffer.BlockCopy(bytes, 0, floats, 0, bytes.Length);
 ```
-**폴리곤 데이터 1당 유니티 좌표계의 1m 를 의미합니다.**
+Float 배열을 Vector3 배열로 변환하였고, 루프 안에서 정점들을 조회하면서  1과 2의 offset을 더하여 mesh를 위한 triangle을 얻었습니다.
+ 
+ ```
+                     // Convert list of floats to array of vertices
+                    for (var k = 0; k < floats.Length; k += 3)
+                    {
+                        vertices.Add(new Vector3(floats[k], floats[k + 2], floats[k + 1]));
+                    }
 
-아래의 그림과 유사한 단지 구성이 되어야 합니다. 평형별 색상은 고려하지 않으셔도 됩니다.
+                    // Get triangles for mesh.
+                    for (var l = 0; l < vertices.Count; l += 3)
+                    {
+                        triangles.Add(l);
+                        triangles.Add(l + 1);
+                        triangles.Add(l + 2);
+                    }
+```
+그리고나서, GenerateMesh(GameObject, Vector3[], int[], Material)를 호출하였습니다. 그러나, 두 번째 질문에서 어떻게 UV mapping을 하나의 mesh에 적용할지가 고민되었습니다.
 
-![결과1](https://i.imgur.com/vcmmiid.png)
+# Q2)
 
+각각의 건물들에 주어진 texture를 이용하여 새 shader material을 만들었습니다.
+ 
+Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+ 
+Material material = new Material(shader) {mainTexture = textureMap};
 
+recalculatingnormals와 mesh vertices 설정 후, quad가 바라보는 각도를 찾아내야 했습니다.
+앞, 위/아래, 나머지의 세 면이 있었습니다.
+ 
+Normal과 forward(앞) 벡터 사이의 각도를 찾아서 방향을 찾았습니다
+위/아래의 경우, normal과 Vector3.up || Vector3.down를 비교하였습니다.
+ 
+Texture가 mesh를 따라 늘어나지 않도록 만들고 싶었습니다. 또한, 높이가 다른 연결된 건물들도 있었습니다. 따라서, 하나의 plane에 맵핑을 하게 되면 잘려나가는 texture가 있을 수 있어 옳지 않다고 생각했습니다. (1, 2)
+ 
+Quad의 y와 y의 최대값을 비교한 뒤, 올바르게 UP map 좌표에 적용할 수 있도록 값을 normalize할 수 있었습니다. (3,4)
 
-### 문제2) 문제1의 결과를 바탕으로 생성된 메쉬에 텍스쳐를 매핑합니다.(60점)
+![ProblemSolution](https://imgur.com/viq6UuC.png)
 
-텍스쳐의 위치는 아래와 같습니다.
+Texture 맵에서의 normalize된 포지션을 얻기 위해, Uv는 반복문 안에서 정점들을 조회하고 전체 정점 배열 중 최소값, 최대값과 비교하며 맵핑되었습니다. 적절한 texture를 얻기 위해 0.0-0.75의 offset을 더하였습니다.
 
-Assets/Samples/texture/buildingTester_d.png
+# 결과 
+![results](https://imgur.com/sxkkBIO.png)
 
-텍스쳐는 아래와 같이 구성되어 있습니다.
-![Texture](https://i.imgur.com/srIPHBq.png)
-
-
-텍스쳐 매핑은 다음과 같습니다.
-
-1번(앞) : 정점의 normal과 Vector3.forward의 각도가 y축을 기준으로 180 <= n && n <= 220 에 해당하는 경우
-
-2번 : 1, 3을 제외한 모든 경우
-
-3번(위, 아래) : 정점의 normal이 y축을 기준으로 Vector3.up || Vector3.down과 일치하는 경우
-
-
-텍스쳐 파일을 자르지 않고 한장으로 그려야합니다. 
-
-**한 층을 3m 로 가정하여 Material 의 SetTextureScale 값을 조정해주세요.**
-
-**ex) 한 동의 높이가 10m 인 경우 = 10 / 3 = 3.3333 = 3층**
-
-**Material.SetTextureScale("_BaseMap", new Vector2(1f, 3));**
-
-아래의 그림과 비슷한 모양이 나와야합니다. 실 데이터와 차이가 있으므로 정확하게 일치하지는 않습니다.
-
-![결과2](https://i.imgur.com/gbjA93E.png)
-
-#### 평가기준
-
-1. <b>아파트 단지에 텍스쳐 맵핑을 적용 (10점)
-
-2. 주어진 텍스쳐 이미지를 문제에서 제시한 영역만큼 구분하여 적용 (20점)
-   * 정점의 uv 좌표를 이용하여 구현해야 합니다. 텍스쳐 파일 나누어 구현하는 것은 인정되지 않습니다.
-
-3. 적용된 텍스쳐를 문제에 제시한 방향 조건에 맞추어 적용 (30점)</b>
-
-### 코드 설계시 우대되는 부분
-
-유니티 라이프 사이클 함수 (Awake, Start, OnEnable, OnDisable, OnDestroy, Update) 이외의 직접 라이플 사이클을 구현 <b>(점수 획득한 문제에 가산점 +20점)</b>
-
-MyFramework.cs 파일에 GameObject / Material 등의 리소스 생성 및 삭제가 구현되어야 합니다.
-
-MyFramework.cs 파일에만 유니티 라이프 사이클 함수를 사용합니다.
-
-리소스 생성 및 삭제의 순서가 명확해야합니다.
-
-# 문제 해결 방법 (자유롭게 작성)
 

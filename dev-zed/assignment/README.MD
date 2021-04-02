@@ -49,11 +49,11 @@ Texture가 mesh를 따라 늘어나지 않도록 만들고 싶었습니다. 또�
  
 Quad의 y와 y의 최대값을 비교한 뒤, 올바르게 UP map 좌표에 적용할 수 있도록 값을 normalize할 수 있었습니다. (3,4)
 
-![ProblemSolution](https://imgur.com/viq6UuC)
+![ProblemSolution](https://imgur.com/viq6UuC.png)
 
 Texture 맵에서의 normalize된 포지션을 얻기 위해, Uv는 반복문 안에서 정점들을 조회하고 전체 정점 배열 중 최소값, 최대값과 비교하며 맵핑되었습니다. 적절한 texture를 얻기 위해 0.0-0.75의 offset을 더하였습니다.
 
 # 결과 
-![results](https://imgur.com/sxkkBIO)
+![results](https://imgur.com/sxkkBIO.png)
 
 
